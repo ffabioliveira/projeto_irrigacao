@@ -1,0 +1,8 @@
+2024-06-26 23:01:45,978 - __main__ - DEBUG - Broker MQTT definido: 10.0.0.117
+2024-06-26 23:01:45,978 - __main__ - INFO - Instância de ComunicacaoMQTT criada com sucesso.
+2024-06-26 23:01:45,981 - __main__ - INFO - Conexão ao broker MQTT estabelecida com sucesso.
+2024-06-26 23:01:45,981 - __main__ - INFO - Inscrições nos tópicos MQTT realizadas com sucesso.
+2024-06-26 23:01:53,767 - __main__ - INFO - Comando para abrir a válvula enviado.
+2024-06-26 23:02:00,764 - __main__ - INFO - Comando para abrir a válvula enviado.
+2024-06-26 23:02:02,524 - __main__ - INFO - Comando para fechar a válvula enviado.
+2024-06-26 23:02:06,828 - __main__ - INFO - Encerrando o programa.
