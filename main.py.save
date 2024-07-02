@@ -1,0 +1,47 @@
+import paho.mqtt.client as mqtt
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+# Configurações MQTT
+broker = "broker.hivemq.com"
+porta = 1883
+topico_maq1_para_maq2 = "maquina1/to/maquina2"
+topico_maq2_para_maq1 = "maquina2/to/maquina1"
+
+# Callback - conexão ao broker
+def on_connect(client, userdata, flags, rc):
+    logging.info("Máquina 1 conectada ao broker!")
+    client.subscribe(topico_maq2_para_maq1)
+
+# Callback - recebimento de mensagens
+def on_message(client, userdata, msg):
+    mensagem = msg.payload.decode()
+    logging.info(f"Máquina 1 recebeu do tópico {msg.topic}: {mensagem}")
+    if mensagem == "Máquina 2 conectada!":
+        logging.info("Máquina 2 conectada ao broker!")
+    elif "Status:" in mensagem:
+        logging.info(f"Status da Máquina 2: {mensagem.split('Status:')[1]}")
+    # Processamento de outras mensagens...
+
+# Criação do cliente MQTT
+cliente = mqtt.Client()
+cliente.on_connect = on_connect
+cliente.on_message = on_message
+
+# Conexão ao broker MQTT
+logging.info("Conectando Máquina 1 ao broker...")
+cliente.connect(broker, porta, 60)
+
+# Loop para manter a conexão MQTT
+cliente.loop_start()
+
+# Exemplo de publicação de mensagem de controle para a Máquina 2
+time.sleep(5)
+cliente.publish(topico_maq1_para_maq2, "Ligar válvula;Tempo:4.90;Intervalo:5.63")
+logging.debug("Mensagem publicada para maquina2: Ligar válvula;Tempo:4.90;Intervalo:5.63")
+
+# Mantém a execução para receber mensagens
+while True:
+    time.sleep(1)

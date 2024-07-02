@@ -14,28 +14,17 @@ def on_message(client, userdata, message):
     mensagem_recebida = message.payload.decode()
     print(f"Máquina 1 recebeu do tópico maquina2/to/maquina1: {mensagem_recebida}")
 
-    if "Volume" in mensagem_recebida:
-        dados = mensagem_recebida.split(';')
-        for dado in dados:
-            if dado.startswith("Volume"):
-                volume_atual = float(dado.split(':')[1])
-                print(f"Volume atual: {volume_atual:.2f} litros")
-            elif dado.startswith("Tempo"):
-                tempo_parcial = float(dado.split(':')[1])
-                print(f"Tempo parcial: {tempo_parcial:.2f} minutos")
-    elif "Confirmação:" in mensagem_recebida or "Próximo acionamento" in mensagem_recebida:
-        print(f"\nMáquina 1 recebeu confirmação: {mensagem_recebida}\n")
-    elif "Válvula" in mensagem_recebida:
+    if "Válvula" in mensagem_recebida:
         print(f"\nMáquina 2 informou: {mensagem_recebida}\n")
     elif "Máquina 2 conectada" in mensagem_recebida:  # Verifica a mensagem de conexão
         maquina2_conectada = True  # Sai do loop de espera
 
 def obter_dados_ambientais():
     # Substitua esta função pela coleta real de dados da API do clima
-    fase_desenvolvimento = 14  # dias
-    textura_solo = 18  # porcentagem de argila
-    evapotranspiracao = 5  # mm/dia
-    precipitacao = 0  # mm
+    fase_desenvolvimento = 67  # dias
+    textura_solo = 47  # porcentagem de argila
+    evapotranspiracao = 10  # mm/dia
+    precipitacao = 20  # mm
     return fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao
 
 def formatar_tempo(tempo_minutos):
@@ -67,20 +56,20 @@ if __name__ == '__main__':
     ciclo_total = int(input("Informe o ciclo total da cultura em dias: "))  # Solicita o ciclo total
     simulador_fuzzy = criar_sistema_fuzzy(ciclo_total)
 
+    fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = obter_dados_ambientais()
+    tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
+
+    tempo_formatado = formatar_tempo(tempo_acionamento)
+    intervalo_formatado = formatar_intervalo(intervalo)
+
+    print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
+    print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
+
+    client.publish("maquina1/to/maquina2", f"Ciclo:{ciclo_total};Tempo:{tempo_acionamento:.2f};Intervalo:{intervalo:.2f}")
+
     try:
         while True:
-            fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = obter_dados_ambientais()
-            tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
-
-            tempo_formatado = formatar_tempo(tempo_acionamento)
-            intervalo_formatado = formatar_intervalo(intervalo)
-
-            print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
-            print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
-
-            client.publish("maquina1/to/maquina2", f"Ciclo:{ciclo_total};Tempo:{tempo_acionamento:.2f};Intervalo:{intervalo:.2f}")
-
-            time.sleep(intervalo * 3600)  # Converter horas para segundos
+            time.sleep(1)
     except KeyboardInterrupt:
         pass
     except Exception as e:
@@ -89,4 +78,3 @@ if __name__ == '__main__':
     client.loop_stop()
     client.disconnect()
     print("Máquina 1 desconectada.")
-
