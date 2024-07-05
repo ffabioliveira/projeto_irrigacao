@@ -1,82 +1,57 @@
-import paho.mqtt.client as mqtt
 import time
+from datetime import datetime
+from comunicacao_mqtt import ComunicacaoMQTT
+from dados_ambientais import DadosAmbientais
 from logica_fuzzy import criar_sistema_fuzzy, calcular_fuzzy
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Computador de Borda conectado ao broker!")
-        client.subscribe("microcontrolador/to/borda")
-    else:
-        print(f"Falha na conexão do Computador de Borda. Código de retorno: {rc}")
+class Main:
+    def __init__(self, broker, client_id):
+        self.comunicacao = ComunicacaoMQTT(broker, client_id)
+        self.comunicacao.conectar()
 
-def on_message(client, userdata, message):
-    global microcontrolador_conectado
-    mensagem_recebida = message.payload.decode()
+    def iniciar(self):
+        while not self.comunicacao.client.is_connected():
+            time.sleep(1)
 
-    if mensagem_recebida.startswith("Status:"):
-        print(f"Microcontrolador informou: {mensagem_recebida}")
-    elif mensagem_recebida == "Microcontrolador conectado!":
-        microcontrolador_conectado = True
-        print("Microcontrolador conectado!")
+        self.comunicacao.aguardar_conexao_microcontrolador()
 
-def obter_dados_ambientais():
-    fase_desenvolvimento = 67  # dias
-    textura_solo = 47  # porcentagem de argila
-    evapotranspiracao = 10  # mm/dia
-    precipitacao = 20  # mm
-    return fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao
+        ciclo_total = int(input("Informe o ciclo total da cultura em dias: "))
+        textura_solo = float(input("Informe a porcentagem de argila no solo (0-100%): "))
 
-def formatar_tempo(tempo_minutos):
-    minutos = int(tempo_minutos)
-    segundos = int((tempo_minutos - minutos) * 60)
-    return f"{minutos:02}:{segundos:02}"
+        dados_ambientais = DadosAmbientais(ciclo_total, textura_solo)
+        simulador_fuzzy = criar_sistema_fuzzy(ciclo_total)
 
-def formatar_intervalo(intervalo_horas):
-    horas = int(intervalo_horas)
-    minutos = int((intervalo_horas - horas) * 60)
-    segundos = int((intervalo_horas * 3600 - horas * 3600 - minutos * 60))
-    return f"{horas:02}:{minutos:02}:{segundos:02}"
+        try:
+            while True:
+                data_atual = datetime.now()
+                dia_atual = (data_atual - dados_ambientais.data_inicio).days + 1
+
+                if dia_atual > ciclo_total:
+                    print("Ciclo da cultura completado.")
+                    break
+
+                fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = dados_ambientais.obter_dados_ambientais(dia_atual)
+                tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
+
+                tempo_formatado = dados_ambientais.formatar_tempo(tempo_acionamento)
+                intervalo_formatado = dados_ambientais.formatar_intervalo(intervalo)
+
+                print(f"Dia {dia_atual} do ciclo da cultura")
+                print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
+                print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
+
+                self.comunicacao.enviar_mensagem("borda/to/microcontrolador", f"Ciclo:{ciclo_total};Tempo:{tempo_acionamento:.2f};Intervalo:{intervalo:.2f}")
+
+                time.sleep(86400)  # Aguardar um dia (24 horas)
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            print(f"Erro durante a execução: {e}")
+
+        self.comunicacao.client.loop_stop()
+        self.comunicacao.client.disconnect()
+        print("Computador de Borda desconectado.")
 
 if __name__ == '__main__':
-    broker = '10.0.0.117'
-    client = mqtt.Client("borda")
-    client.on_connect = on_connect
-    client.on_message = on_message
-    print("Conectando Computador de Borda ao broker...")
-    client.connect(broker)
-    client.loop_start()
-
-    microcontrolador_conectado = False
-
-    while not client.is_connected():
-        time.sleep(1)
-
-    while not microcontrolador_conectado:
-        print("Aguardando conexão do Microcontrolador...")
-        time.sleep(5)
-
-    ciclo_total = int(input("Informe o ciclo total da cultura em dias: "))
-    simulador_fuzzy = criar_sistema_fuzzy(ciclo_total)
-
-    fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = obter_dados_ambientais()
-    tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
-
-    tempo_formatado = formatar_tempo(tempo_acionamento)
-    intervalo_formatado = formatar_intervalo(intervalo)
-
-    print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
-    print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
-
-    client.publish("borda/to/microcontrolador", f"Ciclo:{ciclo_total};Tempo:{tempo_acionamento:.2f};Intervalo:{intervalo:.2f}")
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"Erro durante a execução: {e}")
-
-    client.loop_stop()
-    client.disconnect()
-    print("Computador de Borda desconectado.")
+    sistema = Main('10.0.0.117', 'borda')
+    sistema.iniciar()
