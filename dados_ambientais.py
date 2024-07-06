@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class DadosAmbientais:
     def __init__(self, ciclo_total, textura_solo):
@@ -6,7 +6,9 @@ class DadosAmbientais:
         self.textura_solo = textura_solo
         self.data_inicio = datetime.now()
 
-    def obter_dados_ambientais(self, dia_atual):
+    def obter_dados_ambientais(self):
+        data_atual = datetime.now()
+        dia_atual = (data_atual - self.data_inicio).days + 1
         fase_desenvolvimento = dia_atual  # dias corridos
         evapotranspiracao = 5  # mm/dia
         precipitacao = 0  # mm

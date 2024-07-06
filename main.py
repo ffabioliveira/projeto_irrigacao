@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from comunicacao_mqtt import ComunicacaoMQTT
 from dados_ambientais import DadosAmbientais
 from logica_fuzzy import criar_sistema_fuzzy, calcular_fuzzy
@@ -23,26 +23,36 @@ class Main:
 
         try:
             while True:
+                fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = dados_ambientais.obter_dados_ambientais()
+                dia_atual = fase_desenvolvimento
                 data_atual = datetime.now()
-                dia_atual = (data_atual - dados_ambientais.data_inicio).days + 1
 
                 if dia_atual > ciclo_total:
                     print("Ciclo da cultura completado.")
                     break
 
-                fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao = dados_ambientais.obter_dados_ambientais(dia_atual)
                 tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
 
                 tempo_formatado = dados_ambientais.formatar_tempo(tempo_acionamento)
                 intervalo_formatado = dados_ambientais.formatar_intervalo(intervalo)
 
-                print(f"Dia {dia_atual} do ciclo da cultura")
+                print(f"Dia {dia_atual} de {ciclo_total} dia(s) do ciclo da cultura - Data: {data_atual.strftime('%d/%m/%Y')} - Hora atual: {data_atual.strftime('%H:%M:%S')}")
                 print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
                 print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
 
-                self.comunicacao.enviar_mensagem("borda/to/microcontrolador", f"Ciclo:{ciclo_total};Tempo:{tempo_acionamento:.2f};Intervalo:{intervalo:.2f}")
+                # Ligar válvula imediatamente
+                self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "ligar_valvula")
+                self.atualizar_status_periodicamente(tempo_acionamento * 60, "Acionamento em progresso")
 
-                time.sleep(86400)  # Aguardar um dia (24 horas)
+                # Desligar válvula
+                self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "desligar_valvula")
+
+                # Calcular próximo acionamento
+                proximo_acionamento = data_atual + timedelta(minutes=tempo_acionamento + intervalo * 60)
+                print(f"Próximo acionamento: {proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')}")
+
+                # Enviar status durante o intervalo
+                self.atualizar_status_periodicamente(intervalo * 3600 - tempo_acionamento * 60, "Intervalo entre acionamentos")
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -51,6 +61,12 @@ class Main:
         self.comunicacao.client.loop_stop()
         self.comunicacao.client.disconnect()
         print("Computador de Borda desconectado.")
+
+    def atualizar_status_periodicamente(self, duracao, mensagem):
+        start_time = time.time()
+        while time.time() - start_time < duracao:
+            print(f"{mensagem} - {datetime.now().strftime('%H:%M:%S')}")
+            time.sleep(60)  # Atualiza a cada minuto
 
 if __name__ == '__main__':
     sistema = Main('10.0.0.117', 'borda')
