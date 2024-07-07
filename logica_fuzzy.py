@@ -34,13 +34,13 @@ def criar_sistema_fuzzy(ciclo_total):
     precipitacao['alta'] = fuzz.trapmf(precipitacao.universe, [7, 9, 10, 12]) # Alta entre 7 e 12 mm
     precipitacao['muito alta'] = fuzz.trapmf(precipitacao.universe, [10, 12, 25, 25]) # Muito alta acima de 10 mm
 
-    tempo_acionamento['curto'] = fuzz.trapmf(tempo_acionamento.universe, [0, 0, 5, 10]) # mudança na função trapezoidal
-    tempo_acionamento['moderado'] = fuzz.trimf(tempo_acionamento.universe, [7.5, 15, 22.5]) # mudança na função triangular
-    tempo_acionamento['longo'] = fuzz.trapmf(tempo_acionamento.universe, [20, 30, 60, 60]) # mudança na função trapezoidal
+    tempo_acionamento['curto'] = fuzz.trapmf(tempo_acionamento.universe, [0, 0, 1, 3]) # mudança na função trapezoidal
+    tempo_acionamento['moderado'] = fuzz.trimf(tempo_acionamento.universe, [2, 4, 6]) # mudança na função triangular
+    tempo_acionamento['longo'] = fuzz.trapmf(tempo_acionamento.universe, [5, 7, 10, 10]) # mudança na função trapezoidal
 
-    intervalo['curto'] = fuzz.trapmf(intervalo.universe, [0, 0, 6, 12]) # mudança na função trapezoidal
-    intervalo['moderado'] = fuzz.trimf(intervalo.universe, [9, 15, 21]) # mudança na função triangular
-    intervalo['longo'] = fuzz.trapmf(intervalo.universe, [18, 22, 24, 24]) # mudança na função trapezoidal
+    intervalo['curto'] = fuzz.trapmf(intervalo.universe, [0, 0, 1, 2]) # mudança na função trapezoidal
+    intervalo['moderado'] = fuzz.trimf(intervalo.universe, [1.5, 3, 4.5]) # mudança na função triangular
+    intervalo['longo'] = fuzz.trapmf(intervalo.universe, [4, 5, 6, 6]) # mudança na função trapezoidal
 
     # Definir as regras fuzzy para determinar o tempo e o intervalo de irrigação
     regras = [

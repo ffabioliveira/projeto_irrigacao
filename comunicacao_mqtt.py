@@ -38,4 +38,5 @@ class ComunicacaoMQTT:
     def aguardar_conexao_microcontrolador(self):
         while not self.microcontrolador_conectado:
             print("Aguardando conexão do Microcontrolador...")
+            self.enviar_mensagem("borda/to/node-red/status_message", '{"topic": "status_message", "statusMessage": "Aguardando conexão do Microcontrolador..."}')
             time.sleep(5)

@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime, timedelta
 from comunicacao_mqtt import ComunicacaoMQTT
@@ -33,12 +34,34 @@ class Main:
 
                 tempo_acionamento, intervalo = calcular_fuzzy(simulador_fuzzy, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
 
-                tempo_formatado = dados_ambientais.formatar_tempo(tempo_acionamento)
-                intervalo_formatado = dados_ambientais.formatar_intervalo(intervalo)
+                tempo_formatado = self.formatar_tempo(tempo_acionamento)
+                intervalo_formatado = self.formatar_intervalo(intervalo)
 
+                # Log para verificação
                 print(f"Dia {dia_atual} de {ciclo_total} dia(s) do ciclo da cultura - Data: {data_atual.strftime('%d/%m/%Y')} - Hora atual: {data_atual.strftime('%H:%M:%S')}")
                 print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
                 print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
+
+                # Publicar dados específicos no broker MQTT em formato JSON
+                self.comunicacao.enviar_mensagem("borda/to/node-red/cycle_info", json.dumps({
+                    "topic": "cycle_info",
+                    "day": dia_atual,
+                    "totalDays": ciclo_total,
+                    "date": data_atual.strftime('%d/%m/%Y'),
+                    "currentTime": data_atual.strftime('%H:%M:%S')
+                }))
+                self.comunicacao.enviar_mensagem("borda/to/node-red/activation_time", json.dumps({
+                    "topic": "activation_time",
+                    "activationTime": tempo_formatado
+                }))
+                self.comunicacao.enviar_mensagem("borda/to/node-red/interval_time", json.dumps({
+                    "topic": "interval_time",
+                    "intervalTime": intervalo_formatado
+                }))
+                self.comunicacao.enviar_mensagem("borda/to/node-red/valve_status", json.dumps({
+                    "topic": "valve_status",
+                    "valveStatus": "Ligada"
+                }))
 
                 # Ligar válvula imediatamente
                 self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "ligar_valvula")
@@ -46,10 +69,17 @@ class Main:
 
                 # Desligar válvula
                 self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "desligar_valvula")
+                self.comunicacao.enviar_mensagem("borda/to/node-red/valve_status", json.dumps({
+                    "topic": "valve_status",
+                    "valveStatus": "Desligada"
+                }))
 
                 # Calcular próximo acionamento
                 proximo_acionamento = data_atual + timedelta(minutes=tempo_acionamento + intervalo * 60)
-                print(f"Próximo acionamento: {proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')}")
+                self.comunicacao.enviar_mensagem("borda/to/node-red/next_activation", json.dumps({
+                    "topic": "next_activation",
+                    "nextActivation": proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')
+                }))
 
                 # Enviar status durante o intervalo
                 self.atualizar_status_periodicamente(intervalo * 3600 - tempo_acionamento * 60, "Intervalo entre acionamentos")
@@ -62,10 +92,26 @@ class Main:
         self.comunicacao.client.disconnect()
         print("Computador de Borda desconectado.")
 
+    def formatar_tempo(self, tempo_minutos):
+        minutos = int(tempo_minutos)
+        segundos = int((tempo_minutos - minutos) * 60)
+        return f"{minutos:02d}:{segundos:02d}"
+
+    def formatar_intervalo(self, intervalo_horas):
+        horas = int(intervalo_horas)
+        minutos = int((intervalo_horas - horas) * 60)
+        segundos = int(((intervalo_horas - horas) * 60 - minutos) * 60)
+        return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
+
     def atualizar_status_periodicamente(self, duracao, mensagem):
         start_time = time.time()
         while time.time() - start_time < duracao:
-            print(f"{mensagem} - {datetime.now().strftime('%H:%M:%S')}")
+            status_mensagem = f"{mensagem} - {datetime.now().strftime('%H:%M:%S')}"
+            print(status_mensagem)
+            self.comunicacao.enviar_mensagem("borda/to/node-red/activation_in_progress", json.dumps({
+                "topic": "activation_in_progress",
+                "time": datetime.now().strftime('%H:%M:%S')
+            }))
             time.sleep(60)  # Atualiza a cada minuto
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ class DadosAmbientais:
         data_atual = datetime.now()
         dia_atual = (data_atual - self.data_inicio).days + 1
         fase_desenvolvimento = dia_atual  # dias corridos
-        evapotranspiracao = 5  # mm/dia
+        evapotranspiracao = 0 # mm/dia
         precipitacao = 0  # mm
         return fase_desenvolvimento, self.textura_solo, evapotranspiracao, precipitacao
 
