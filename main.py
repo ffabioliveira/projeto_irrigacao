@@ -9,6 +9,8 @@ class Main:
     def __init__(self, broker, client_id):
         self.comunicacao = ComunicacaoMQTT(broker, client_id)
         self.comunicacao.conectar()
+        self.volume_anterior = 0
+        self.volume_atual = 0
 
     def iniciar(self):
         while not self.comunicacao.client.is_connected():
@@ -38,7 +40,7 @@ class Main:
                 intervalo_formatado = self.formatar_intervalo(intervalo)
 
                 # Log para verificação
-                print(f"Dia {dia_atual} de {ciclo_total} dia(s) do ciclo da cultura - Data: {data_atual.strftime('%d/%m/%Y')} - Hora atual: {data_atual.strftime('%H:%M:%S')}")
+                print(f"Dia {dia_atual} de {ciclo_total} dia(s) do ciclo da cultura - Data: {data_atual.strftime('%d/%m/%Y')}")
                 print(f"Tempo de acionamento recomendado: {tempo_formatado} minutos")
                 print(f"Intervalo entre as irrigações recomendado: {intervalo_formatado} horas")
 
@@ -47,8 +49,7 @@ class Main:
                     "topic": "cycle_info",
                     "day": dia_atual,
                     "totalDays": ciclo_total,
-                    "date": data_atual.strftime('%d/%m/%Y'),
-                    "currentTime": data_atual.strftime('%H:%M:%S')
+                    "date": data_atual.strftime('%d/%m/%Y')
                 }))
                 self.comunicacao.enviar_mensagem("borda/to/node-red/activation_time", json.dumps({
                     "topic": "activation_time",
@@ -65,7 +66,20 @@ class Main:
 
                 # Ligar válvula imediatamente
                 self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "ligar_valvula")
-                self.atualizar_status_periodicamente(tempo_acionamento * 60, "Acionamento em progresso")
+                self.atualizar_status_periodicamente(tempo_acionamento * 60, "Estado do Sistema", tempo_acionamento)
+
+                # Atualizar volumes de água
+                self.volume_anterior = self.volume_atual
+                self.volume_atual += 10  # Exemplo de incremento de volume de água
+
+                self.comunicacao.enviar_mensagem("borda/to/node-red/water_volume", json.dumps({
+                    "topic": "water_volume",
+                    "waterVolume": self.volume_atual
+                }))
+                self.comunicacao.enviar_mensagem("borda/to/node-red/previous_water_volume", json.dumps({
+                    "topic": "previous_water_volume",
+                    "previousWaterVolume": self.volume_anterior
+                }))
 
                 # Desligar válvula
                 self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "desligar_valvula")
@@ -82,7 +96,7 @@ class Main:
                 }))
 
                 # Enviar status durante o intervalo
-                self.atualizar_status_periodicamente(intervalo * 3600 - tempo_acionamento * 60, "Intervalo entre acionamentos")
+                self.atualizar_status_periodicamente(intervalo * 3600 - tempo_acionamento * 60, "Estado do Sistema", intervalo * 60)
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -103,14 +117,19 @@ class Main:
         segundos = int(((intervalo_horas - horas) * 60 - minutos) * 60)
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
-    def atualizar_status_periodicamente(self, duracao, mensagem):
+    def atualizar_status_periodicamente(self, duracao, mensagem, tempo_total):
         start_time = time.time()
         while time.time() - start_time < duracao:
-            status_mensagem = f"{mensagem} - {datetime.now().strftime('%H:%M:%S')}"
+            elapsed_time = time.time() - start_time
+            remaining_time = tempo_total - (elapsed_time / 60)
+            percent_complete = (elapsed_time / (tempo_total * 60)) * 100
+            status_mensagem = f"{mensagem} - {percent_complete:.2f}% concluído, tempo restante: {self.formatar_tempo(remaining_time)}"
             print(status_mensagem)
-            self.comunicacao.enviar_mensagem("borda/to/node-red/activation_in_progress", json.dumps({
-                "topic": "activation_in_progress",
-                "time": datetime.now().strftime('%H:%M:%S')
+            self.comunicacao.enviar_mensagem("borda/to/node-red/system_status", json.dumps({
+                "topic": "system_status",
+                "time": datetime.now().strftime('%H:%M:%S'),
+                "percentComplete": f"{percent_complete:.2f}%",
+                "remainingTime": self.formatar_tempo(remaining_time)
             }))
             time.sleep(60)  # Atualiza a cada minuto
 

@@ -34,6 +34,7 @@ class ComunicacaoMQTT:
         elif mensagem_recebida == "Microcontrolador conectado!":
             self.microcontrolador_conectado = True
             print("Microcontrolador conectado!")
+            self.enviar_mensagem("borda/to/node-red/status_message", '{"topic": "status_message", "statusMessage": "Microcontrolador conectado!"}')
 
     def aguardar_conexao_microcontrolador(self):
         while not self.microcontrolador_conectado:
