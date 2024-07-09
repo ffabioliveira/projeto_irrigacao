@@ -26,3 +26,4 @@ class DadosAmbientais:
         minutos = int((intervalo_horas - horas) * 60)
         segundos = int((intervalo_horas * 3600 - horas * 3600 - minutos * 60))
         return f"{horas:02}:{minutos:02}:{segundos:02}"
+
