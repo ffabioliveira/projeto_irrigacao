@@ -5,21 +5,19 @@ class ComunicacaoNuvem:
     def __init__(self, comunicacao):
         self.comunicacao = comunicacao
 
-    def enviar_dados_nuvem(self, ciclo_total, tempo_acionamento, intervalo, volume_por_irrigacao, volume_total_diario, valvula_ligada, proximo_acionamento, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao):
+    def enviar_dados_nuvem(self, ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao):
         dados = {
             "ciclo_total": ciclo_total,
             "tempo_acionamento": self.formatar_tempo(tempo_acionamento),
             "intervalo_entre_irrigacoes": self.formatar_intervalo(intervalo),
-            "volume_por_irrigacao": volume_por_irrigacao,
-            "volume_total_diario": volume_total_diario,
-            "status_valvula": "ligada" if valvula_ligada else "desligada",
-            "proximo_acionamento": proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S') if proximo_acionamento else "N/A",
             "fase_desenvolvimento": fase_desenvolvimento,
             "textura_solo": textura_solo,
-            "evapotranspiracao": evapotranspiracao,
-            "precipitacao": precipitacao
+            "evapotranspiracao": round(evapotranspiracao, 2),
+            "precipitacao": precipitacao,
+            "mensagens_status": self.comunicacao.mensagens_status  # Adiciona as mensagens de status
         }
-        self.comunicacao.enviar_mensagem('topico/nuvem', json.dumps(dados))
+        self.comunicacao.enviar_mensagem('borda/to/node-red/dados', json.dumps(dados))
+        self.comunicacao.enviar_mensagens_status()  # Envia as mensagens de status acumuladas
 
     @staticmethod
     def formatar_tempo(tempo_minutos):
