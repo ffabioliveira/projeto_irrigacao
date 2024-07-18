@@ -1,13 +1,15 @@
 import paho.mqtt.client as mqtt
-import time
 import json
+import time  # Certifique-se de que a biblioteca time seja importada
+from queue import Queue
+from threading import Thread
 
 class ComunicacaoMQTT:
     def __init__(self, broker, client_id):
         self.client = mqtt.Client(client_id)
         self.broker = broker
         self.microcontrolador_conectado = False
-        self.mensagens_status = []
+        self.mensagens_status = Queue()
         self.callback_volume = None
 
     def conectar(self):
@@ -34,9 +36,9 @@ class ComunicacaoMQTT:
         mensagem_recebida = message.payload.decode()
         print(f"Mensagem recebida: {mensagem_recebida}")
         if 'volume_total' in mensagem_recebida:
-            self.callback_volume(mensagem_recebida)
+            if self.callback_volume:
+                self.callback_volume(mensagem_recebida)
         else:
-            self.mensagens_status.append(mensagem_recebida)
             if mensagem_recebida.startswith("Status:"):
                 print(f"Microcontrolador informou: {mensagem_recebida}")
                 self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem_recebida.split(': ', 1)[1]}))
@@ -44,7 +46,8 @@ class ComunicacaoMQTT:
                 self.microcontrolador_conectado = True
                 print("Microcontrolador conectado!")
                 self.enviar_mensagem("borda/to/node-red/status_message", '{"statusMessage": "Microcontrolador conectado!"}')
-            self.enviar_mensagens_status()
+            self.mensagens_status.put(mensagem_recebida)
+            Thread(target=self.enviar_mensagens_status).start()
 
     def aguardar_conexao_microcontrolador(self):
         while not self.microcontrolador_conectado:
@@ -53,9 +56,6 @@ class ComunicacaoMQTT:
             time.sleep(5)
 
     def enviar_mensagens_status(self):
-        for mensagem in self.mensagens_status:
-            if isinstance(mensagem, float):
-                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem}))
-            else:
-                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem}))
-        self.mensagens_status = []
+        while not self.mensagens_status.empty():
+            mensagem = self.mensagens_status.get()
+            self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem}))
