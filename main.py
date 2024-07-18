@@ -61,13 +61,13 @@ class Main:
         print(f"Textura do Solo: {textura_solo}%")
         print(f"Evapotranspiração: {evapotranspiracao:.2f} mm")
         print(f"Precipitação: {precipitacao} mm")
+        self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao, "Dados de irrigação")
 
     def gerenciar_valvula(self, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao):
         if not self.valvula_ligada:
             self.comunicacao_microcontrolador.ligar_valvula()
             self.valvula_ligada = True
             self.proximo_acionamento = datetime.now() + timedelta(minutes=tempo_acionamento)
-            self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
             time.sleep(tempo_acionamento * 60)
         elif datetime.now() >= self.proximo_acionamento:
             self.comunicacao_microcontrolador.desligar_valvula()
@@ -75,7 +75,7 @@ class Main:
             self.proximo_acionamento = datetime.now() + timedelta(hours=intervalo)
             print(f"Próximo acionamento da válvula em: {self.proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')}")
             self.comunicacao.mensagens_status.put(self.proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S'))
-            self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
+            self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao, "Próximo acionamento")
             time.sleep(intervalo * 3600)
 
     @staticmethod
@@ -90,6 +90,7 @@ class Main:
         minutos = int((intervalo_horas - horas) * 60)
         segundos = int((intervalo_horas * 3600 - horas * 3600 - minutos * 60))
         return f"{horas:02}:{minutos:02}:{segundos:02}"
+
 
 if __name__ == '__main__':
     sistema = Main('10.0.0.117', 'borda')

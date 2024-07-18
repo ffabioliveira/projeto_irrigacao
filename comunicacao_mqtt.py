@@ -40,7 +40,6 @@ class ComunicacaoMQTT:
                 self.callback_volume(mensagem_recebida)
         else:
             if mensagem_recebida.startswith("Status:"):
-                print(f"Microcontrolador informou: {mensagem_recebida}")
                 self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem_recebida.split(': ', 1)[1]}))
             elif mensagem_recebida == "Microcontrolador conectado!":
                 self.microcontrolador_conectado = True
