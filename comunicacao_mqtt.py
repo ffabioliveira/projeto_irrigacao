@@ -44,14 +44,15 @@ class ComunicacaoMQTT:
             elif mensagem_recebida == "Microcontrolador conectado!":
                 self.microcontrolador_conectado = True
                 print("Microcontrolador conectado!")
-                self.enviar_mensagem("borda/to/node-red/status_message", '{"statusMessage": "Microcontrolador conectado!"}')
+                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": "Microcontrolador conectado!"}))
             self.mensagens_status.put(mensagem_recebida)
             Thread(target=self.enviar_mensagens_status).start()
 
     def aguardar_conexao_microcontrolador(self):
         while not self.microcontrolador_conectado:
-            print("Aguardando conexão do Microcontrolador...")
-            self.enviar_mensagem("borda/to/node-red/status_message", '{"statusMessage": "Aguardando conexão do Microcontrolador..."}')
+            status_message = "Aguardando conexão do Microcontrolador..."
+            print(status_message)
+            self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": status_message}))
             time.sleep(5)
 
     def enviar_mensagens_status(self):

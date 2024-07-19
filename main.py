@@ -55,42 +55,29 @@ class Main:
 
     def imprimir_informacoes_irrigacao(self, dia_atual, data_atual, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao):
         print(f"Dia {dia_atual} de {self.ciclo_total} dia(s) do ciclo da cultura - Data: {data_atual.strftime('%d/%m/%Y')}")
-        print(f"Tempo de acionamento recomendado: {self.formatar_tempo(tempo_acionamento)} minutos")
-        print(f"Intervalo entre as irrigações recomendado: {self.formatar_intervalo(intervalo)} horas")
+        print(f"Tempo de acionamento recomendado: {self.comunicacao_nuvem.formatar_tempo(tempo_acionamento)}")
+        print(f"Intervalo entre as irrigações recomendado: {self.comunicacao_nuvem.formatar_intervalo(intervalo)}")
         print(f"Fase de Desenvolvimento: {fase_desenvolvimento}")
         print(f"Textura do Solo: {textura_solo}%")
         print(f"Evapotranspiração: {evapotranspiracao:.2f} mm")
         print(f"Precipitação: {precipitacao} mm")
-        self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao, "Dados de irrigação")
+        self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao)
 
     def gerenciar_valvula(self, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao):
         if not self.valvula_ligada:
             self.comunicacao_microcontrolador.ligar_valvula()
             self.valvula_ligada = True
             self.proximo_acionamento = datetime.now() + timedelta(minutes=tempo_acionamento)
+            self.comunicacao_nuvem.enviar_mensagem_status("Válvula ligada")
             time.sleep(tempo_acionamento * 60)
         elif datetime.now() >= self.proximo_acionamento:
             self.comunicacao_microcontrolador.desligar_valvula()
             self.valvula_ligada = False
             self.proximo_acionamento = datetime.now() + timedelta(hours=intervalo)
-            print(f"Próximo acionamento da válvula em: {self.proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')}")
-            self.comunicacao.mensagens_status.put(self.proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S'))
-            self.comunicacao_nuvem.enviar_dados_nuvem(self.ciclo_total, tempo_acionamento, intervalo, fase_desenvolvimento, textura_solo, evapotranspiracao, precipitacao, "Próximo acionamento")
+            proximo_acionamento_str = self.proximo_acionamento.strftime('%d/%m/%Y %H:%M:%S')
+            print(f"Próximo acionamento da válvula em: {proximo_acionamento_str}")
+            self.comunicacao_nuvem.enviar_mensagem_status(f"Próximo acionamento da válvula em: {proximo_acionamento_str}")
             time.sleep(intervalo * 3600)
-
-    @staticmethod
-    def formatar_tempo(tempo_minutos):
-        minutos = int(tempo_minutos)
-        segundos = int((tempo_minutos - minutos) * 60)
-        return f"{minutos:02}:{segundos:02}"
-
-    @staticmethod
-    def formatar_intervalo(intervalo_horas):
-        horas = int(intervalo_horas)
-        minutos = int((intervalo_horas - horas) * 60)
-        segundos = int((intervalo_horas * 3600 - horas * 3600 - minutos * 60))
-        return f"{horas:02}:{minutos:02}:{segundos:02}"
-
 
 if __name__ == '__main__':
     sistema = Main('10.0.0.117', 'borda')

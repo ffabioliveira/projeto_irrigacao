@@ -8,17 +8,18 @@ class ComunicacaoMicrocontrolador:
     def ligar_valvula(self):
         try:
             self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "ligar_valvula")
-            print("Válvula ligada.")
-            self.comunicacao.mensagens_status.put("Válvula ligada")
+            status_message = "Válvula ligada"
+            print(status_message)
+            self.comunicacao.mensagens_status.put(status_message)
         except Exception as e:
             print(f"Erro ao enviar mensagem 'ligar_valvula': {e}")
 
     def desligar_valvula(self):
         try:
             self.comunicacao.enviar_mensagem("borda/to/microcontrolador", "desligar_valvula")
-            print(f"Válvula desligada. Volume total: {self.volume_total:.2f} litros")
-            self.comunicacao.mensagens_status.put(f"Volume total: {self.volume_total:.2f} litros")
-            self.comunicacao.mensagens_status.put("Válvula desligada")
+            status_message = f"Válvula desligada. Volume total: {self.volume_total:.2f} litros"
+            print(status_message)
+            self.comunicacao.mensagens_status.put(status_message)
         except Exception as e:
             print(f"Erro ao enviar mensagem 'desligar_valvula': {e}")
 
