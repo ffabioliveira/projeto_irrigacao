@@ -1,15 +1,13 @@
-import paho.mqtt.client as mqtt
 import json
-import time  # Certifique-se de que a biblioteca time seja importada
-from queue import Queue
-from threading import Thread
+import time
+import paho.mqtt.client as mqtt
 
 class ComunicacaoMQTT:
-    def __init__(self, broker, client_id):
+    def __init__(self, broker, client_id, main_instance):
         self.client = mqtt.Client(client_id)
         self.broker = broker
+        self.main_instance = main_instance
         self.microcontrolador_conectado = False
-        self.mensagens_status = Queue()
         self.callback_volume = None
 
     def conectar(self):
@@ -29,6 +27,7 @@ class ComunicacaoMQTT:
         if rc == 0:
             print("Computador de Borda conectado ao broker!")
             client.subscribe("microcontrolador/to/borda")
+            client.subscribe("node-red/to/borda/configuracao")
         else:
             print(f"Falha na conexão do Computador de Borda. Código de retorno: {rc}")
 
@@ -38,15 +37,23 @@ class ComunicacaoMQTT:
         if 'volume_total' in mensagem_recebida:
             if self.callback_volume:
                 self.callback_volume(mensagem_recebida)
+        elif mensagem_recebida == "Microcontrolador conectado!":
+            self.microcontrolador_conectado = True
+            print("Microcontrolador conectado!")
+            self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": "Microcontrolador conectado!"}))
+        elif mensagem_recebida.startswith("Status:"):
+            status_message = mensagem_recebida.split(": ", 1)[1]
+            if status_message not in ["Válvula ligada", "Válvula desligada"]:
+                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": status_message}))
         else:
-            if mensagem_recebida.startswith("Status:"):
-                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem_recebida.split(': ', 1)[1]}))
-            elif mensagem_recebida == "Microcontrolador conectado!":
-                self.microcontrolador_conectado = True
-                print("Microcontrolador conectado!")
-                self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": "Microcontrolador conectado!"}))
-            self.mensagens_status.put(mensagem_recebida)
-            Thread(target=self.enviar_mensagens_status).start()
+            try:
+                dados = json.loads(mensagem_recebida)
+                if 'ciclo_total' in dados and 'textura_solo' in dados:
+                    self.main_instance.ciclo_total = int(dados['ciclo_total'])
+                    self.main_instance.textura_solo = float(dados['textura_solo'])
+                    print(f"Ciclo total e textura do solo atualizados: {self.main_instance.ciclo_total} dias, {self.main_instance.textura_solo}% argila")
+            except json.JSONDecodeError as e:
+                print(f"Erro ao decodificar mensagem: {mensagem_recebida} - Erro: {e}")
 
     def aguardar_conexao_microcontrolador(self):
         while not self.microcontrolador_conectado:
@@ -54,8 +61,3 @@ class ComunicacaoMQTT:
             print(status_message)
             self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": status_message}))
             time.sleep(5)
-
-    def enviar_mensagens_status(self):
-        while not self.mensagens_status.empty():
-            mensagem = self.mensagens_status.get()
-            self.enviar_mensagem("borda/to/node-red/status_message", json.dumps({"statusMessage": mensagem}))

@@ -17,7 +17,6 @@ class ComunicacaoNuvem:
             }
             mensagem = json.dumps(dados, indent=4)
             self.comunicacao.enviar_mensagem("borda/to/node-red", mensagem)
-            print("Dados enviados para o Node-RED")
         except Exception as e:
             print(f"Erro ao enviar dados para o Node-RED: {e}")
 
@@ -30,8 +29,8 @@ class ComunicacaoNuvem:
                 dados['volume_total'] = round(float(volume_total), 2)
 
             mensagem = json.dumps(dados, indent=4)
+
             self.comunicacao.enviar_mensagem("borda/to/node-red/status_message", mensagem)
-            print(f"Status enviado para o Node-RED: {status_message}")
         except Exception as e:
             print(f"Erro ao enviar status para o Node-RED: {e}")
 
@@ -39,12 +38,12 @@ class ComunicacaoNuvem:
     def formatar_tempo(tempo):
         minutos = int(tempo)
         segundos = int((tempo - minutos) * 60)
-        horas = 0  # O tempo de acionamento é em minutos e segundos
+        horas = 0
         return f"{horas:02}:{minutos:02}:{segundos:02}hs"
 
     @staticmethod
     def formatar_intervalo(intervalo):
         horas = int(intervalo)
         minutos = int((intervalo - horas) * 60)
-        segundos = 0  # O intervalo é em horas e minutos
+        segundos = 0
         return f"{horas:02}:{minutos:02}:{segundos:02}hs"
